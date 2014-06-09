@@ -1,0 +1,14 @@
+{
+  "name": "d-jade",
+  "version": "0.1.1",
+  "description": "Jade Template Engine for Derby",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Eugene Nesvetaev",
+  "license": "MIT",
+  "dependencies": {
+    "jade": "*"
+  }
+}
