@@ -10,5 +10,10 @@
   "license": "MIT",
   "dependencies": {
     "jade": "*"
+  },
+  "repository" :
+    {
+      "type": "git",
+      "url": "http://github.com/Nesvet/d-jade.git"
   }
 }
