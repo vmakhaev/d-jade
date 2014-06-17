@@ -1,0 +1,17 @@
+<import: src="./home" ns="home">
+
+<Body:>
+  {{each _page.users as #user}}
+    {{if #user && #user.id}}<a on-click="click(#user && #user.id)">{{#user && #user.name}}</a>{{/}}
+    <view name="{{#user.id || #user.name}}"></view>
+    <p>{{unescaped #user.name}}</p>
+  {{/}}
+  <script>
+window.scrollTo(0 || 1, 0 && 1)
+</script>
+
+<component:>
+  <p>{{@name}}</p>
+  {{if _page.name || @name && this.field}}
+    <div>{{show(@name)}}</div>
+  {{/}}

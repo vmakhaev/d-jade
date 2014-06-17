@@ -1,0 +1,15 @@
+import(src='./home', ns='home')
+
+Body
+  each _page.users as #user
+    if #user and #user.id
+      a(on-click='click #user and #user.id') {{#user and #user.name}}
+    view(name='{{#user.id or #user.name}}')
+    p {{unescaped #user.name}}
+  script.
+    window.scrollTo 0 or 1, 0 and 1
+
+component
+  p {{#@name}}
+  if _page.name or #@name and @field
+    div {{show #@name}}
