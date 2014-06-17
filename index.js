@@ -18,7 +18,7 @@ function preprocess(source) {
 			}
 			return indentation+"__derby-statement(type=\""+type+"\""+(value ? " value=\""+escape(value)+"\"" : "")+")";
 		})
-		.replace(/{{(.*)}}/gm, function(statement, expression) {
+		.replace(/{{(.*?)}}/gm, function(statement, expression) {
 			var block = "";
 			if (blockCaptures = /^((?:unescaped)\*?) *([^\n]*)/.exec(expression)) {
         block = blockCaptures[1] + " ";
