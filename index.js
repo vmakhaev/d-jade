@@ -157,7 +157,7 @@ function compiler(file, fileName) {
       debug(debugString + ', script.start');
       continue;
     }
-    if (statement.indexOf('script') === 0) {
+    if (statement.indexOf('script ') === 0) {
       // Script line
       if (options.coffee) statement = 'script ' + coffee(statement.slice(7));
       block.push(addindent(statement, indent));
