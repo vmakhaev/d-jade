@@ -63,9 +63,7 @@ function postprocess(html) {
       return '{{' + type + (value ? unescape(value) : '') + '}}';
     })
     // Closing Derby statements
-    .replace(/<\/__derby-statement>/g, '{{/}}')
-    // Remove underscores
-    .replace(/^<_/g, '<');
+    .replace(/<\/__derby-statement>/g, '{{/}}');
 }
 
 function compiler(file, fileName) {
@@ -90,9 +88,14 @@ function compiler(file, fileName) {
       jade.render(source, jadeOptions, function (error, html) {
         if (error) throw error;
         html = html
-          .replace(/^\s*(<(\w+))((?:\b[^>]+)?>)\n?([\s\S]*?)\n?<\/\2>$/, function (template, left, name, right, content) {
+          // Remove underscores
+          .replace(/<_derby_/g, '<')
+          .replace(/<\/_derby_/g, '<\/')
+          // Add colons
+          .replace(/^\s*(<([\w-]+))((?:\b[^>]+)?>)\n?([\s\S]*?)\n?<\/\2>$/, function (template, left, name, right, content) {
             return left + ':' + right + (content ? '\n' + content : '');
           })
+          // Add scripts
           .replace(/<script(\d*)><\/script\1>/g, function(statement, index) {
             return scripts[index];
           });
@@ -185,7 +188,7 @@ function compiler(file, fileName) {
       });
       // We add underscore to avoid problems when Derby tag name
       // is same as non closing tags
-      statement = '_' + statement
+      statement = '_derby_' + statement;
       debugString += ', block start';
       block.push(statement);
     } else {
