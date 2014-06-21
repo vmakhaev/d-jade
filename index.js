@@ -82,7 +82,7 @@ function compiler(file, fileName) {
       var source = preprocess(block.join('\n'));
       block = [];
       var jadeOptions = {
-        fileName: fileName,
+        filename: fileName,
         pretty: true
       }
       jade.render(source, jadeOptions, function (error, html) {
