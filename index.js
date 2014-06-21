@@ -141,7 +141,7 @@ function compiler(file, fileName) {
     // Script
     if (lastScript !== Infinity) {
       if (indent > lastScript) {
-        script.push(statement);
+        script.push(addindent(statement, indent));
         debug(debugString + ', script');
         continue;
       } else {
