@@ -1,15 +1,33 @@
 import(src='./home', ns='home')
+import:(src='./about')
 
-Body
+Body:
   each _page.users as #user
     if #user and #user.id
       a(on-click='click #user and #user.id') {{#user and #user.name}}
+    else if #user or #user.id
+      p {{#user.id}}
+    else
+      p nothing
     view(name='{{#user.id or #user.name}}')
     p {{unescaped #user.name}}
+
+  p
+    script.
+      window.scrollTo 0 or 1, 0 and 1
+    //script.
+      window.location = window.location
+    p
+      script.
+        history.go -2
+      // p bla-bla
+  script history.go 2
   script.
-    window.scrollTo 0 or 1, 0 and 1
+    history.go 1
 
 component
-  p {{#@name}}
-  if _page.name or #@name and @field
-    div {{show #@name}}
+  p {{@name}}
+  if _page.name or @name and @.field
+    div {{show @name}}
+  script.
+    history.go 0

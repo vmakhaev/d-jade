@@ -1,17 +1,34 @@
 <import: src="./home" ns="home">
-
+<import: src="./about">
 <Body:>
   {{each _page.users as #user}}
-    {{if #user && #user.id}}<a on-click="click(#user && #user.id)">{{#user && #user.name}}</a>{{/}}
+    {{if #user && #user.id}}<a on-click="click(#user && #user.id)">{{#user && #user.name}}</a>    {{else if #user || #user.id}}
+      <p>{{#user.id}}</p>
+    {{else}}
+      <p>nothing</p>
+    {{/}}
     <view name="{{#user.id || #user.name}}"></view>
     <p>{{unescaped #user.name}}</p>
   {{/}}
+  <p>
+    <script>
+      window.scrollTo(0 || 1, 0 && 1)
+    </script>
+    <p>
+      <script>
+        history.go(-2)
+      </script>
+    </p>
+  </p>
+  <script>history.go(2)</script>
   <script>
-window.scrollTo(0 || 1, 0 && 1)
-</script>
-
+    history.go(1)
+  </script>
 <component:>
   <p>{{@name}}</p>
   {{if _page.name || @name && this.field}}
     <div>{{show(@name)}}</div>
   {{/}}
+  <script>
+    history.go(0)
+  </script>

@@ -1,68 +1,196 @@
-var jade  = require("jade");
-var coffee = require("./coffee");
+var jade  = require('jade');
+var coffee = require('./coffee');
+//process.env.DEBUG = 'derby-jade';
+var debug = require('debug')('derby-jade');
 var options;
-
-function trimindent(source, indentation) {
-	indentation = indentation || /^\s+/.exec(source);
-	return source.replace(new RegExp("^"+indentation, "gm"), "");
-}
-function indent(source, indentation) {
-	indentation = indentation || "	";
-	return source.replace(/^(.*)/gm, indentation+"$1");
-}
-function preprocess(source) {
-	return source
-		.replace(/^([ \t]+)(if|else(?:[ \t]+if)?|unless|each|with)((?:[ \t]|\().+)?$/gm, function (statement, indentation, type, value) {
-			if (options.coffee) {
-				value = " " + coffee(value);
-			}
-			return indentation+"__derby-statement(type=\""+type+"\""+(value ? " value=\""+escape(value)+"\"" : "")+")";
-		})
-		.replace(/{{(.*?)}}/gm, function(statement, expression) {
-			var block = "";
-			if (blockCaptures = /^((?:unescaped)\*?) *([^\n]*)/.exec(expression)) {
-        block = blockCaptures[1] + " ";
-        expression = blockCaptures[2];
-      }
-			if (options.coffee) expression = coffee(expression);
-			return "{{" + block + expression + "}}";
-		})
-		.replace(/on-(.*)=['"](.*)['"]/gm, function(statement, type, expression) {
-			if (options.coffee) expression = coffee(expression);
-			return "on-" + type + "!=\"" + expression + "\"";
-		});
-}
-function postprocess(html) {
-	return html
-		.replace(/\t/g, "")
-		.replace(/[ \t]*<\/__derby-statement>\n?(?=\s+<__derby-statement type="else([ \t]+if)?")/g, "")
-		.replace(/<__derby-statement type="([^"]+)"(?: value="([^"]+)")?>/g, function (statement, type, value) {
-			return "{{"+type+(value ? unescape(value) : "")+"}}";
-		})
-		.replace(/<\/__derby-statement>/g, "{{/}}")
-		.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gm, function(statement, script) {
-			if (options.coffee) script = coffee(script);
-			return "<script>\n" + script + "\n</script>";
-		});
-}
-
-function jadeCompiler(file, filename, options) {
-	var out = [];
-	preprocess(file).match(/^\w+.*$(?:\n^([ \t]+).*$(?:\n^\1.*$)*)?/gm).forEach(function (template) {
-		jade.render(template, {"pretty": true}, function (error, html) {
-			if (error) {
-				console.error(error);
-			}
-			out.push(html.replace(/^\s*(<(\w+))((?:\b[^>]+)?>)\n?([\s\S]*?)\n?<\/\2>$/, function (template, left, name, right, content) {
-				return left+":"+right+(content ? "\n"+indent(content) : "")+"\n";
-			}));
-		});
-	});
-	return postprocess(out.join("\n"));
-}
+var defaultIndent = 2;
 
 module.exports = function (app, opts) {
-	options = opts || {};
-	app.viewExtensions.push(".jade");
-	app.compilers[".jade"] = jadeCompiler;
+  options = opts || {};
+  app.viewExtensions.push('.jade');
+  app.compilers['.jade'] = compiler;
 };
+
+function addindent(source, count) {
+  if (count === undefined) count = defaultIndent;
+  var indentation = '';
+  for (var i = 0; i < count; i++) {
+    indentation += ' ';
+  }
+  return indentation + source;
+}
+
+function preprocess(source) {
+  return source
+    // Replace if, else, each, etc statements to __derby-statement(type="if", value="expression")
+    // we cheat Jade, because it has it`s own statements
+    .replace(/^([ \t]+)(if|else(?:[ \t]+if)?|unless|each|with|bound|unbound|on)((?:[ \t]|\().+)?$/gm,
+      function (statement, indentation, type, expression) {
+        if (options.coffee) {
+          expression = ' ' + coffee(expression);
+        }
+        return indentation + '__derby-statement(type=\"' + type + '\"' + 
+          (expression ? ' value=\"' + escape(expression) + '\"' : '') + ')';
+    })
+    // This is needed for coffee
+    // find all statements in {{..}}
+    .replace(/{{([^\/].*?)}}/g, function(statement, expression) {
+      var block = '';
+      if (blockCaptures = /^((?:unescaped|if|else if|unless|each|with|bound|unbound|on)\*?) *([^\n]*)/.exec(expression)) {
+        block = blockCaptures[1] + ' ';
+        expression = blockCaptures[2];
+      } else if (expression === 'else') {
+        block = expression;
+        expression = '';
+      }
+      if (options.coffee) expression = coffee(expression);
+      return '{{' + block + expression + '}}';
+    })
+    // Make Derby attribues unescaped
+    .replace(/on-(.*)=['"](.*)['"]/gm, function(statement, type, expression) {
+      if (options.coffee) expression = coffee(expression);
+      return 'on-' + type + '!=\"' + expression + '\"';
+    });
+}
+
+function postprocess(html) {
+  return html
+    // Clean redundant Derby statements
+    .replace(/[ \t]*<\/__derby-statement>\n?(?=\s+<__derby-statement type="else([ \t]+if)?")/g, '')
+    // Replace Derby statements back
+    .replace(/<__derby-statement type="([^"]+)"(?: value="([^"]+)")?>/gm, function (statement, type, value) {
+      if (value === '%20') value = '';
+      return '{{' + type + (value ? unescape(value) : '') + '}}';
+    })
+    // Closing Derby statements
+    .replace(/<\/__derby-statement>/g, '{{/}}');
+}
+
+function compiler(file, fileName) {
+  var out = [];
+  var lines = file.split('\n');
+  var lastComment = Infinity;
+  var lastScript = Infinity;
+  var script = [];
+  var scripts = [];
+  var block = [];
+  var debugString;
+
+  function renderBlock() {
+    if (block.length) {
+      debugString += ', block end';
+      var source = preprocess(block.join('\n'));
+      block = [];
+      var jadeOptions = {
+        fileName: fileName,
+        pretty: true
+      }
+      jade.render(source, jadeOptions, function (error, html) {
+        if (error) throw error;
+        html = html
+          .replace(/^\s*(<(\w+))((?:\b[^>]+)?>)\n?([\s\S]*?)\n?<\/\2>$/, function (template, left, name, right, content) {
+            return left + ':' + right + (content ? '\n' + content : '');
+          })
+          .replace(/<script(\d*)><\/script\1>/g, function(statement, index) {
+            return scripts[index];
+          });
+        out.push(postprocess(html));
+      });
+    }
+  }
+
+  function closeScript() {
+    if (script.length) {
+      var source = script.join('\n');
+      if (options.coffee) source = coffee(source);
+      script = [];
+      var scriptSource = '<script>';
+      source.split('\n').forEach(function (scriptLine) {
+        scriptSource += '\n' + addindent(scriptLine, lastScript + defaultIndent);
+      });
+      scriptSource += '\n' + addindent('</script>', lastScript);
+      scripts.push(scriptSource);
+      block.push(addindent('script' + (scripts.length - 1), lastScript));
+    }
+  }
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+
+    var res = /^(\s*)(.*?)$/g.exec(line);
+    var spaces = res[1];
+    var statement = res[2];
+    var indent = spaces.length;
+    debugString = addindent(statement, indent) + ' | ' + indent;
+
+    // Comment
+    if (lastComment !== Infinity) {
+      if (indent > lastComment) {
+        debug(debugString + ', comment');
+        continue;
+      } else {
+        debugString += ', comment end';
+        lastComment = Infinity;
+      }
+    }
+    if (statement.indexOf('//') === 0) {
+      lastComment = indent;
+      debug(debugString + ', comment start');
+      continue;
+    }
+    // Script
+    if (lastScript !== Infinity) {
+      if (indent > lastScript) {
+        script.push(statement);
+        debug(debugString + ', script');
+        continue;
+      } else {
+        debugString += ', script end';
+        closeScript();
+        lastScript = Infinity;
+      }
+    }
+    if (statement.indexOf('script.') === 0) {
+      // Script block
+      lastScript = indent;
+      debug(debugString + ', script.start');
+      continue;
+    }
+    if (statement.indexOf('script') === 0) {
+      // Script line
+      if (options.coffee) statement = 'script ' + coffee(statement.slice(7));
+      block.push(addindent(statement, indent));
+      debug(debugString + ', script line');
+      continue;
+    }
+    // Empty line
+    if (!statement.length) {
+      block.push('');
+      debug(debugString + ', empty');
+      continue;
+    }
+
+    if (indent === 0) {
+      // Derby tag
+      // It means that we are going to start another block,
+      // so we should render last one first
+      renderBlock();
+      // Remove colons after Derby tags
+      // it makes colons optional
+      statement = statement.replace(/^([^(]*):/, function(statement, tag) {
+        return tag;
+      });
+      debugString += ', block start';
+      block.push(statement);
+    } else {
+      debugString += ', block';
+      block.push(line);
+    }
+    debug(debugString);
+  }
+  // Close script if exist and render block
+  closeScript();
+  renderBlock();
+
+  return out.join('\n');
+}

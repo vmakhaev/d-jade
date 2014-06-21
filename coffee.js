@@ -1,6 +1,7 @@
 var coffeeScript = require("coffee-script");
 
 module.exports = function (js) {
+  if (!js) return '';
   var original = js;
   // Exclude Derby block alias
   var alias;
@@ -11,7 +12,7 @@ module.exports = function (js) {
   }
   // Replace # to not widely used symbol for alias variable names
   // js variables can not start with #
-  js = js.replace(/#@/g, "☺");
+  js = js.replace(/@(?!\.)/g, "☺");
   js = js.replace(/#/g, "〇");
   try {
     js = coffeeScript.compile(js, {bare: true});
