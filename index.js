@@ -63,7 +63,9 @@ function postprocess(html) {
       return '{{' + type + (value ? unescape(value) : '') + '}}';
     })
     // Closing Derby statements
-    .replace(/<\/__derby-statement>/g, '{{/}}');
+    .replace(/<\/__derby-statement>/g, '{{/}}')
+    // Remove underscores
+    .replace(/^<_/g, '<');
 }
 
 function compiler(file, fileName) {
@@ -181,6 +183,9 @@ function compiler(file, fileName) {
       statement = statement.replace(/^([^(]*):/, function(statement, tag) {
         return tag;
       });
+      // We add underscore to avoid problems when Derby tag name
+      // is same as non closing tags
+      statement = '_' + statement
       debugString += ', block start';
       block.push(statement);
     } else {
