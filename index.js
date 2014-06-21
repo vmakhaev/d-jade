@@ -106,6 +106,7 @@ function compiler(file, fileName) {
       script = [];
       var scriptSource = '<script>';
       source.split('\n').forEach(function (scriptLine) {
+        scriptLine = scriptLine.replace(/^\s*/g, '');
         scriptSource += '\n' + addindent(scriptLine, lastScript + defaultIndent);
       });
       scriptSource += '\n' + addindent('</script>', lastScript);
